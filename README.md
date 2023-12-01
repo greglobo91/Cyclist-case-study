@@ -16,7 +16,9 @@ For this study different tools were used:
 -  Data cleaning and wrangling: R (RStudio)
 -  Data visualization: Tableau
 
-Support files:  
-DA-C8-Case-Study-1-PDF.pdf = Case Study description, company background, scenario, business task.  
+Support files:
+Cyclist-presentation.pptx = Powerpoint presentation with final recommendations
+DA-C8-Case-Study-1-PDF.pdf = Case Study description, company background, scenario, business task.
+Project-R-script.R = R script with data wrangling and calculations.
 Project-guide-roadmap.Rmd = R markdown with step-by-step process of cleaning and wrangling.  
 Project-guide-roadmap.html = R markdown export.

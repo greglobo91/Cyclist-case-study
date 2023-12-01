@@ -1,0 +1,157 @@
+---
+title: "cyclist_project_case_study"
+author: "Greg"
+date: "2023-11-21"
+output: html_document
+---
+
+#Project Capstone Cyclist
+
+##Step 1 Spreadsheet (Excel)
+
+* Download all data files (may-oct 2023)
+* Create copies to transform to xlsx documents (leave csv backup copies)
+* Added ride_length (ended_at - started_at)(D2 - C2)
+* Added day_of_week (WEEKDAY(started_at)) (WEEKDAY(C2)) as number
+* Exported all the files to transform in RStudio
+
+##* Complete raw dataset is hosted on Kaggle.com [click here](https://www.kaggle.com/datasets/gregoriolobo/cyclist-complete-dataset-may-oct)
+
+##Step 2 RStudio
+
+* Prepare environment
+```{r prepare environment, echo=FALSE}
+library(readxl)
+library(skimr)
+library(tidyverse)
+```
+
+* Assign all files to individual dataframes numbered 5-10 (may-oct)
+
+```{r create and assign dataframes, echo=FALSE}
+df_05 <- read_excel("G:/My Drive/Google Data Analytics Certificate/Module 8 Capstone/2023-cyclist_xlsx_files/202305-divvy-tripdata.xlsx")
+df_06 <- read_excel("G:/My Drive/Google Data Analytics Certificate/Module 8 Capstone/2023-cyclist_xlsx_files/202306-divvy-tripdata.xlsx")
+df_07 <- read_excel("G:/My Drive/Google Data Analytics Certificate/Module 8 Capstone/2023-cyclist_xlsx_files/202307-divvy-tripdata.xlsx")
+df_08 <- read_excel("G:/My Drive/Google Data Analytics Certificate/Module 8 Capstone/2023-cyclist_xlsx_files/202308-divvy-tripdata.xlsx")
+df_09 <- read_excel("G:/My Drive/Google Data Analytics Certificate/Module 8 Capstone/2023-cyclist_xlsx_files/202309-divvy-tripdata.xlsx")
+df_10 <- read_excel("G:/My Drive/Google Data Analytics Certificate/Module 8 Capstone/2023-cyclist_xlsx_files/202310-divvy-tripdata.xlsx")
+```
+
+* Merge all dataframes into a single df_complete
+* First df structure evaluation
+
+```{r merge dataframe, echo=TRUE}
+df_complete <- rbind(df_05, df_06, df_07, df_08, df_09, df_10)
+skim_without_charts(df_complete)
+```
+
+```{r initial output file, eval=FALSE, include=FALSE}
+write_csv(df_complete, "G:/My Drive/Google Data Analytics Certificate/Module 8 Capstone/2023-cyclist_xlsx_files/2023-complete-tripdata.csv")
+```
+
+* Notice how started_at, ended_at and ride_length are of type POSIXct
+* Change column ride_length to be calculated in seconds and as a numeric type to run calculations
+
+```{r convert ride_length column, echo=FALSE}
+df_complete$ride_length <- difftime(df_complete$ended_at, df_complete$started_at)
+df_complete$ride_length <- as.numeric(as.character(df_complete$ride_length))
+```
+
+* DF structure summary and evaluation
+
+```{r second df evaluation}
+skim_without_charts(df_complete)
+glimpse(df_complete)
+str(df_complete)
+colnames(df_complete)
+```
+
+* Verify columns member_casual and rideable_type to make sure all the values are correct
+
+```{r column verification}
+table(df_complete$member_casual)
+table(df_complete$rideable_type)
+```
+
+* Create new aggregation columns as date, month, day, and day_of_week to make further calculations
+
+```{r new aggregation columns, echo=FALSE}
+df_complete$date <- as.Date(df_complete$started_at)
+df_complete$month <- format(as.Date(df_complete$started_at), format = "%m")
+df_complete$day <- format(as.Date(df_complete$started_at), format = "%d")
+df_complete$day_of_week <- format(as.Date(df_complete$started_at), "%A")
+```
+ 
+* Create a new v2 df with cleaned data and removed negative erroneous values in ride_length column (167 records removed)
+
+```{r v2 df with cleaned records}
+df_complete_v2 <- df_complete[!df_complete$ride_length<0,]
+```
+
+* Descriptive analysis of ride_length column
+
+```{r v2 ride_length summary}
+summary(df_complete_v2$ride_length)
+```
+
+* Comparative statistics between members and casual riders
+
+```{r members vs casual comparison}
+aggregate(df_complete_v2$ride_length ~ df_complete_v2$member_casual, FUN = mean)
+aggregate(df_complete_v2$ride_length ~ df_complete_v2$member_casual, FUN = median)
+aggregate(df_complete_v2$ride_length ~ df_complete_v2$member_casual, FUN = max)
+aggregate(df_complete_v2$ride_length ~ df_complete_v2$member_casual, FUN = min)
+```
+
+
+* Comparative average ride time by each day for members vs casual users
+
+```{r average members vs casual per weekday}
+aggregate(df_complete_v2$ride_length ~ df_complete_v2$member_casual + df_complete_v2$day_of_week, FUN = mean)
+```
+
+* Notice weekdays are in alphabetical order, change them in sequential order
+
+```{r order weekdays, echo=FALSE}
+df_complete_v2$day_of_week <- ordered(df_complete_v2$day_of_week, levels = c("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"))
+```
+
+* Comparative average ride time by each day for members vs casual users
+```{r average ride time members vs casual}
+aggregate(df_complete_v2$ride_length ~ df_complete_v2$member_casual + df_complete_v2$day_of_week, FUN = mean)
+```
+
+* Analyze ridership data by type and weekday
+```{r number of rides by type and weekday}
+df_complete_v2 %>% 
+  group_by(member_casual, day_of_week) %>%                #groups by usertype and weekday
+  summarise(number_of_rides = n()							            #calculates the number of rides and average duration 
+            ,average_duration = mean(ride_length)) %>% 		#calculates the average duration
+  arrange(member_casual, day_of_week)
+```
+
+* Viz the number of rides by rider type and weekday
+```{r viz number of rides per rider type}
+df_complete_v2 %>% 
+  mutate(weekday = wday(started_at, label = TRUE)) %>% 
+  group_by(member_casual, weekday) %>% 
+  summarise(number_of_rides = n(), average_duration = mean(ride_length)) %>% 
+  arrange(member_casual, weekday)  %>% 
+  ggplot(aes(x = weekday, y = number_of_rides, fill = member_casual)) + 
+  geom_col(position = "dodge")
+```
+
+* Viz for average duration by rider type and weekday
+```{r viz average duration}
+df_complete_v2 %>% 
+  group_by(member_casual, day_of_week) %>% 
+  summarise(number_of_rides = n(), average_duration = mean(ride_length)) %>% 
+  arrange(member_casual, day_of_week)  %>% 
+  ggplot(aes(x = day_of_week, y = average_duration, fill = member_casual)) +
+  geom_col(position = "dodge")
+```
+
+* Export file for further analysis
+```{r output file, eval=FALSE, include=FALSE}
+write_csv(df_complete_v2, "G:/My Drive/Google Data Analytics Certificate/Module 8 Capstone/2023-cyclist_xlsx_files/2023-cleaned-final-trip-dataset.csv")
+```
